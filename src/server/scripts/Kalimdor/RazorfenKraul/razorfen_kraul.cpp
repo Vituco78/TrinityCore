@@ -17,11 +17,10 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedEscortAI.h"
-#include "razorfen_kraul.h"
-#include "Player.h"
 #include "PetAI.h"
+#include "Player.h"
+#include "razorfen_kraul.h"
+#include "ScriptedEscortAI.h"
 #include "SpellScript.h"
 
 enum Willix
@@ -47,9 +46,9 @@ class npc_willix : public CreatureScript
 public:
     npc_willix() : CreatureScript("npc_willix") { }
 
-    struct npc_willixAI : public npc_escortAI
+    struct npc_willixAI : public EscortAI
     {
-        npc_willixAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_willixAI(Creature* creature) : EscortAI(creature) { }
 
         void QuestAccept(Player* player, Quest const* quest) override
         {
@@ -57,11 +56,11 @@ public:
             {
                 Start(true, false, player->GetGUID());
                 Talk(SAY_READY, player);
-                me->SetFaction(113);
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
             }
         }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -132,7 +131,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new npc_willixAI(creature);
+        return GetRazorfenKraulAI<npc_willixAI>(creature);
     }
 };
 

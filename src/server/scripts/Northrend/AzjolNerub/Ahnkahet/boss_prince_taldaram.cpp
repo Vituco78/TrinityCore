@@ -16,11 +16,17 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "GameObjectAI.h"
-#include "SpellScript.h"
-#include "Player.h"
 #include "ahnkahet.h"
+#include "GameObject.h"
+#include "GameObjectAI.h"
+#include "InstanceScript.h"
+#include "Map.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
+#include "ScriptedCreature.h"
+#include "Spell.h"
+#include "SpellScript.h"
 
 enum Spells
 {
@@ -47,7 +53,8 @@ enum Spells
 enum Misc
 {
     DATA_EMBRACE_DMG                        = 20000,
-    H_DATA_EMBRACE_DMG                      = 40000
+    H_DATA_EMBRACE_DMG                      = 40000,
+    SUMMON_GROUP_CONTROLLERS                = 1
 };
 
 #define DATA_SPHERE_DISTANCE                25.0f
@@ -98,6 +105,9 @@ class boss_prince_taldaram : public CreatureScript
                 _flameSphereTargetGUID.Clear();
                 _embraceTargetGUID.Clear();
                 _embraceTakenDamage = 0;
+
+                if (!CheckSpheres())
+                    me->SummonCreatureGroup(SUMMON_GROUP_CONTROLLERS);
             }
 
             void EnterCombat(Unit* /*who*/) override
@@ -119,6 +129,10 @@ class boss_prince_taldaram : public CreatureScript
                     case NPC_FLAME_SPHERE_2:
                     case NPC_FLAME_SPHERE_3:
                         summon->AI()->SetGUID(_flameSphereTargetGUID);
+                        break;
+                    case NPC_JEDOGA_CONTROLLER:
+                        summon->CastSpell(me, SPELL_BEAM_VISUAL);
+                        break;
                     default:
                         return;
                 }
@@ -254,19 +268,21 @@ class boss_prince_taldaram : public CreatureScript
                 if (_embraceTargetGUID)
                     return ObjectAccessor::GetUnit(*me, _embraceTargetGUID);
 
-                return NULL;
+                return nullptr;
             }
 
             void RemovePrison()
             {
                 me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                summons.DespawnEntry(NPC_JEDOGA_CONTROLLER);
                 me->RemoveAurasDueToSpell(SPELL_BEAM_VISUAL);
                 me->SetHomePosition(me->GetPositionX(), me->GetPositionY(), DATA_GROUND_POSITION_Z, me->GetOrientation());
                 DoCast(SPELL_HOVER_FALL);
                 me->SetDisableGravity(false);
                 me->GetMotionMaster()->MoveLand(0, me->GetHomePosition());
                 Talk(SAY_WARNING);
-                instance->HandleGameObject(instance->GetGuidData(DATA_PRINCE_TALDARAM_PLATFORM), true);
+                if (GameObject* platform = instance->GetGameObject(DATA_PRINCE_TALDARAM_PLATFORM))
+                    instance->HandleGameObject(platform->GetGUID(), true);
             }
 
         private:
@@ -371,7 +387,7 @@ class npc_prince_taldaram_flame_sphere : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return new npc_prince_taldaram_flame_sphereAI(creature);
+            return GetAhnKahetAI<npc_prince_taldaram_flame_sphereAI>(creature);
         }
 };
 
@@ -387,9 +403,9 @@ class go_prince_taldaram_sphere : public GameObjectScript
 
             InstanceScript* instance;
 
-            bool GossipHello(Player* /*player*/, bool /*reportUse*/) override
+            bool GossipHello(Player* /*player*/) override
             {
-                Creature* princeTaldaram = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_PRINCE_TALDARAM));
+                Creature* princeTaldaram = instance->GetCreature(DATA_PRINCE_TALDARAM);
                 if (princeTaldaram && princeTaldaram->IsAlive())
                 {
                     me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
@@ -431,11 +447,7 @@ class spell_prince_taldaram_conjure_flame_sphere : public SpellScriptLoader
 
             bool Validate(SpellInfo const* /*spellInfo*/) override
             {
-                if (!sSpellMgr->GetSpellInfo(SPELL_FLAME_SPHERE_SUMMON_1)
-                    || !sSpellMgr->GetSpellInfo(SPELL_FLAME_SPHERE_SUMMON_2)
-                    || !sSpellMgr->GetSpellInfo(SPELL_FLAME_SPHERE_SUMMON_3))
-                    return false;
-                return true;
+                return ValidateSpellInfo({ SPELL_FLAME_SPHERE_SUMMON_1, SPELL_FLAME_SPHERE_SUMMON_2, SPELL_FLAME_SPHERE_SUMMON_3 });
             }
 
             void HandleScript(SpellEffIndex /*effIndex*/)

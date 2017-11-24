@@ -17,12 +17,13 @@
  */
 
 #include "ScriptMgr.h"
-#include "SpellScript.h"
-#include "SpellAuraEffects.h"
-#include "ScriptedCreature.h"
 #include "blackwing_lair.h"
-#include "ScriptedGossip.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
+#include "SpellAuraEffects.h"
+#include "SpellScript.h"
 
 enum Says
 {
@@ -75,7 +76,7 @@ public:
         {
             Initialize();
             creature->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-            creature->SetFaction(35);
+            creature->SetFaction(FACTION_FRIENDLY);
             creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
         }
 
@@ -153,7 +154,7 @@ public:
                             events.ScheduleEvent(EVENT_SPEECH_4, 16000);
                             break;
                         case EVENT_SPEECH_4:
-                            me->SetFaction(103);
+                            me->SetFaction(FACTION_DRAGONFLIGHT_BLACK);
                             if (PlayerGUID && ObjectAccessor::GetUnit(*me, PlayerGUID))
                                 AttackStart(ObjectAccessor::GetUnit(*me, PlayerGUID));;
                             break;
@@ -239,7 +240,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new boss_vaelAI(creature);
+        return GetBlackwingLairAI<boss_vaelAI>(creature);
     }
 };
 

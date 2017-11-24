@@ -40,7 +40,6 @@ EndContentData */
 enum TapokeSlim
 {
     QUEST_MISSING_DIPLO_PT11    = 1249,
-    FACTION_ENEMY               = 168,
     SPELL_STEALTH               = 1785,
     SPELL_CALL_FRIENDS          = 16457,                    //summons 1x friend
     NPC_SLIMS_FRIEND            = 4971,
@@ -57,9 +56,9 @@ public:
         return new npc_tapoke_slim_jahnAI(creature);
     }
 
-    struct npc_tapoke_slim_jahnAI : public npc_escortAI
+    struct npc_tapoke_slim_jahnAI : public EscortAI
     {
-        npc_tapoke_slim_jahnAI(Creature* creature) : npc_escortAI(creature)
+        npc_tapoke_slim_jahnAI(Creature* creature) : EscortAI(creature)
         {
             Initialize();
         }
@@ -77,7 +76,7 @@ public:
                 Initialize();
         }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             switch (waypointId)
             {
@@ -107,17 +106,6 @@ public:
                 summoned->AI()->AttackStart(player);
         }
 
-        void AttackedBy(Unit* pAttacker) override
-        {
-            if (me->GetVictim())
-                return;
-
-            if (me->IsFriendlyTo(pAttacker))
-                return;
-
-            AttackStart(pAttacker);
-        }
-
         void DamageTaken(Unit* /*pDoneBy*/, uint32& uiDamage) override
         {
             if (HealthBelowPct(20))
@@ -130,7 +118,7 @@ public:
 
                     me->RestoreFaction();
                     me->RemoveAllAuras();
-                    me->DeleteThreatList();
+                    me->GetThreatManager().ClearAllThreat();
                     me->CombatStop(true);
 
                     SetRun(false);

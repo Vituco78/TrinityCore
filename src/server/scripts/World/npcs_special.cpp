@@ -17,26 +17,27 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "ScriptedEscortAI.h"
-#include "ObjectMgr.h"
-#include "ScriptMgr.h"
-#include "World.h"
-#include "PassiveAI.h"
-#include "GameEventMgr.h"
-#include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
-#include "Cell.h"
 #include "CellImpl.h"
-#include "SpellHistory.h"
-#include "SpellAuras.h"
-#include "Pet.h"
-#include "CreatureTextMgr.h"
 #include "CombatAI.h"
-#include "SmartAI.h"
-#include "Vehicle.h"
+#include "CreatureTextMgr.h"
+#include "GameEventMgr.h"
+#include "GridNotifiersImpl.h"
+#include "Log.h"
+#include "MotionMaster.h"
 #include "MoveSplineInit.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "PassiveAI.h"
+#include "Pet.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
+#include "ScriptMgr.h"
+#include "SmartAI.h"
+#include "SpellAuras.h"
+#include "SpellHistory.h"
+#include "SpellMgr.h"
+#include "Vehicle.h"
+#include "World.h"
 
 /*########
 # npc_air_force_bots
@@ -104,13 +105,13 @@ public:
     {
         npc_air_force_botsAI(Creature* creature) : ScriptedAI(creature)
         {
-            SpawnAssoc = NULL;
+            SpawnAssoc = nullptr;
             SpawnedGUID.Clear();
 
             // find the correct spawnhandling
-            static uint32 entryCount = sizeof(spawnAssociations) / sizeof(SpawnAssociation);
+            static uint8 constexpr const EntryCount = uint8(std::extent<decltype(spawnAssociations)>::value);
 
-            for (uint8 i = 0; i < entryCount; ++i)
+            for (uint8 i = 0; i < EntryCount; ++i)
             {
                 if (spawnAssociations[i].thisCreatureEntry == creature->GetEntry())
                 {
@@ -128,7 +129,7 @@ public:
                 if (!spawnedTemplate)
                 {
                     TC_LOG_ERROR("sql.sql", "TCSR: Creature template entry %u does not exist in DB, which is required by npc_air_force_bots", SpawnAssoc->spawnedCreatureEntry);
-                    SpawnAssoc = NULL;
+                    SpawnAssoc = nullptr;
                     return;
                 }
             }
@@ -148,7 +149,7 @@ public:
             else
             {
                 TC_LOG_ERROR("sql.sql", "TCSR: npc_air_force_bots: wasn't able to spawn Creature %u", SpawnAssoc->spawnedCreatureEntry);
-                SpawnAssoc = NULL;
+                SpawnAssoc = nullptr;
             }
 
             return summoned;
@@ -161,7 +162,7 @@ public:
             if (creature && creature->IsAlive())
                 return creature;
 
-            return NULL;
+            return nullptr;
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -177,7 +178,7 @@ public:
                 if (!playerTarget)
                     return;
 
-                Creature* lastSpawnedGuard = SpawnedGUID.IsEmpty() ? NULL : GetSummonedGuard();
+                Creature* lastSpawnedGuard = SpawnedGUID.IsEmpty() ? nullptr : GetSummonedGuard();
 
                 // prevent calling Unit::GetUnit at next MoveInLineOfSight call - speedup
                 if (!lastSpawnedGuard)
@@ -256,9 +257,7 @@ enum ChickenCluck
     EMOTE_HELLO_H       = 1,
     EMOTE_CLUCK_TEXT    = 2,
 
-    QUEST_CLUCK         = 3861,
-    FACTION_FRIENDLY    = 35,
-    FACTION_CHICKEN     = 31
+    QUEST_CLUCK         = 3861
 };
 
 class npc_chicken_cluck : public CreatureScript
@@ -283,7 +282,7 @@ public:
         void Reset() override
         {
             Initialize();
-            me->SetFaction(FACTION_CHICKEN);
+            me->SetFaction(FACTION_PREY);
             me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
         }
 
@@ -458,8 +457,7 @@ public:
 
 enum TorchTossingTarget
 {
-    NPC_TORCH_TOSSING_TARGET_BUNNY      = 25535,
-    SPELL_TARGET_INDICATOR              = 45723
+    SPELL_TORCH_TARGET_PICKER      = 45907
 };
 
 class npc_torch_tossing_target_bunny_controller : public CreatureScript
@@ -469,42 +467,28 @@ public:
 
     struct npc_torch_tossing_target_bunny_controllerAI : public ScriptedAI
     {
-        npc_torch_tossing_target_bunny_controllerAI(Creature* creature) : ScriptedAI(creature)
-        {
-            _targetTimer = 3000;
-        }
+        npc_torch_tossing_target_bunny_controllerAI(Creature* creature) : ScriptedAI(creature) { }
 
-        ObjectGuid DoSearchForTargets(ObjectGuid lastTargetGUID)
+        void Reset() override
         {
-            std::list<Creature*> targets;
-            me->GetCreatureListWithEntryInGrid(targets, NPC_TORCH_TOSSING_TARGET_BUNNY, 60.0f);
-            targets.remove_if([lastTargetGUID](Creature* creature) { return creature->GetGUID() == lastTargetGUID; });
-
-            if (!targets.empty())
+            _scheduler.Schedule(Seconds(2), [this](TaskContext context)
             {
-                _lastTargetGUID = Trinity::Containers::SelectRandomContainerElement(targets)->GetGUID();
-
-                return _lastTargetGUID;
-            }
-            return ObjectGuid::Empty;
+                me->CastCustomSpell(SPELL_TORCH_TARGET_PICKER, SPELLVALUE_MAX_TARGETS, 1);
+                _scheduler.Schedule(Seconds(3), [this](TaskContext /*context*/)
+                {
+                    me->CastCustomSpell(SPELL_TORCH_TARGET_PICKER, SPELLVALUE_MAX_TARGETS, 1);
+                });
+                context.Repeat(Seconds(5));
+            });
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (_targetTimer < diff)
-            {
-                if (Unit* target = ObjectAccessor::GetUnit(*me, DoSearchForTargets(_lastTargetGUID)))
-                    target->CastSpell(target, SPELL_TARGET_INDICATOR, true);
-
-                _targetTimer = 3000;
-            }
-            else
-                _targetTimer -= diff;
+            _scheduler.Update(diff);
         }
 
     private:
-        uint32 _targetTimer;
-        ObjectGuid _lastTargetGUID;
+        TaskScheduler _scheduler;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -566,7 +550,7 @@ public:
             std::list<Player*> players;
             Trinity::UnitAuraCheck check(true, SPELL_RIBBON_DANCE_COSMETIC);
             Trinity::PlayerListSearcher<Trinity::UnitAuraCheck> searcher(me, players, check);
-            me->VisitNearbyWorldObject(10.0f, searcher);
+            Cell::VisitWorldObjects(me, searcher, 10.0f);
 
             return players.empty();
         }
@@ -848,7 +832,7 @@ public:
         void Initialize()
         {
             DoctorGUID.Clear();
-            Coord = NULL;
+            Coord = nullptr;
         }
 
         ObjectGuid DoctorGUID;
@@ -1041,9 +1025,9 @@ class npc_garments_of_quests : public CreatureScript
 public:
     npc_garments_of_quests() : CreatureScript("npc_garments_of_quests") { }
 
-    struct npc_garments_of_questsAI : public npc_escortAI
+    struct npc_garments_of_questsAI : public EscortAI
     {
-        npc_garments_of_questsAI(Creature* creature) : npc_escortAI(creature)
+        npc_garments_of_questsAI(Creature* creature) : EscortAI(creature)
         {
             switch (me->GetEntry())
             {
@@ -1131,11 +1115,6 @@ public:
             }
         }
 
-        void WaypointReached(uint32 /*waypointId*/) override
-        {
-
-        }
-
         void UpdateAI(uint32 diff) override
         {
             if (CanRun && !me->IsInCombat())
@@ -1166,7 +1145,7 @@ public:
                     RunAwayTimer -= diff;
             }
 
-            npc_escortAI::UpdateAI(diff);
+            EscortAI::UpdateAI(diff);
         }
     };
 
@@ -1604,7 +1583,7 @@ class npc_tournament_mount : public CreatureScript
                 if (apply)
                 {
                     _pennantSpellId = GetPennantSpellId(player);
-                    player->CastSpell((Unit*)nullptr, _pennantSpellId, true);
+                    player->CastSpell(nullptr, _pennantSpellId, true);
                 }
                 else
                     player->RemoveAurasDueToSpell(_pennantSpellId);
@@ -1811,8 +1790,8 @@ public:
 
         void DamageTaken(Unit* doneBy, uint32& damage) override
         {
-            me->AddThreat(doneBy, float(damage));    // just to create threat reference
-            _damageTimes[doneBy->GetGUID()] = time(NULL);
+            AddThreat(doneBy, float(damage));    // just to create threat reference
+            _damageTimes[doneBy->GetGUID()] = time(nullptr);
             damage = 0;
         }
 
@@ -1832,7 +1811,7 @@ public:
                 {
                     case EVENT_TD_CHECK_COMBAT:
                     {
-                        time_t now = time(NULL);
+                        time_t now = time(nullptr);
                         for (std::unordered_map<ObjectGuid, time_t>::iterator itr = _damageTimes.begin(); itr != _damageTimes.end();)
                         {
                             // If unit has not dealt damage to training dummy for 5 seconds, remove him from combat
@@ -2182,7 +2161,7 @@ public:
 
         GameObject* FindNearestLauncher()
         {
-            GameObject* launcher = NULL;
+            GameObject* launcher = nullptr;
 
             if (isCluster())
             {
@@ -2297,7 +2276,7 @@ public:
                     break;
             }
 
-            const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
 
             if (spellInfo && spellInfo->Effects[0].Effect == SPELL_EFFECT_SUMMON_OBJECT_WILD)
                 return spellInfo->Effects[0].MiscValue;
@@ -2342,7 +2321,7 @@ public:
 
                 float displacement = 0.7f;
                 for (uint8 i = 0; i < 4; i++)
-                    me->SummonGameObject(GetFireworkGameObjectId(), me->GetPositionX() + (i % 2 == 0 ? displacement : -displacement), me->GetPositionY() + (i > 1 ? displacement : -displacement), me->GetPositionZ() + 4.0f, me->GetOrientation(), G3D::Quat(), 1);
+                    me->SummonGameObject(GetFireworkGameObjectId(), me->GetPositionX() + (i % 2 == 0 ? displacement : -displacement), me->GetPositionY() + (i > 1 ? displacement : -displacement), me->GetPositionZ() + 4.0f, me->GetOrientation(), QuaternionData(), 1);
             }
             else
                 //me->CastSpell(me, GetFireworkSpell(me->GetEntry()), true);

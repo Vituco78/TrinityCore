@@ -104,7 +104,7 @@ public:
             }
         }
 
-        void SpellHit(Unit* /*pCaster*/, const SpellInfo* pSpell) override
+        void SpellHit(Unit* /*pCaster*/, SpellInfo const* pSpell) override
         {
             if (HasFollowState(STATE_FOLLOW_INPROGRESS | STATE_FOLLOW_PAUSED) && pSpell->Id == SPELL_AWAKEN)
                 ClearSleeping();
@@ -193,7 +193,6 @@ enum Remtravel
     SAY_REM_REMEMBER            = 11,
     EMOTE_REM_END               = 12,
 
-    FACTION_ESCORTEE            = 10,
     QUEST_ABSENT_MINDED_PT2     = 731,
     NPC_GRAVEL_SCOUT            = 2158,
     NPC_GRAVEL_BONE             = 2159,
@@ -205,9 +204,9 @@ class npc_prospector_remtravel : public CreatureScript
 public:
     npc_prospector_remtravel() : CreatureScript("npc_prospector_remtravel") { }
 
-    struct npc_prospector_remtravelAI : public npc_escortAI
+    struct npc_prospector_remtravelAI : public EscortAI
     {
-        npc_prospector_remtravelAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_prospector_remtravelAI(Creature* creature) : EscortAI(creature) { }
 
         void Reset() override { }
 
@@ -223,7 +222,7 @@ public:
             //pSummoned->AI()->AttackStart(me);
         }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             if (Player* player = GetPlayerForEscort())
             {
@@ -289,7 +288,7 @@ public:
             if (quest->GetQuestId() == QUEST_ABSENT_MINDED_PT2)
             {
                 Start(false, false, player->GetGUID());
-                me->SetFaction(FACTION_ESCORTEE);
+                me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
             }
         }
     };
@@ -309,8 +308,7 @@ enum Threshwackonator
     EMOTE_START             = 0,
     SAY_AT_CLOSE            = 0,
     QUEST_GYROMAST_REV      = 2078,
-    NPC_GELKAK              = 6667,
-    FACTION_HOSTILE         = 14
+    NPC_GELKAK              = 6667
 };
 
 #define GOSSIP_ITEM_INSERT_KEY  "[PH] Insert key"
@@ -343,7 +341,7 @@ public:
 
         void DoAtEnd()
         {
-            me->SetFaction(FACTION_HOSTILE);
+            me->SetFaction(FACTION_MONSTER);
 
             if (Player* pHolder = GetLeaderForFollower())
                 AttackStart(pHolder);

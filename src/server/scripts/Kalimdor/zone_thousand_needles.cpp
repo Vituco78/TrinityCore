@@ -32,11 +32,11 @@ go_panther_cage
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "ScriptedEscortAI.h"
+#include "GameObject.h"
 #include "GameObjectAI.h"
 #include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
 
 /*#####
 # npc_kanati
@@ -56,13 +56,13 @@ class npc_kanati : public CreatureScript
 public:
     npc_kanati() : CreatureScript("npc_kanati") { }
 
-    struct npc_kanatiAI : public npc_escortAI
+    struct npc_kanatiAI : public EscortAI
     {
-        npc_kanatiAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_kanatiAI(Creature* creature) : EscortAI(creature) { }
 
         void Reset() override { }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             switch (waypointId)
             {
@@ -115,7 +115,6 @@ enum Lakota
 
     QUEST_FREE_AT_LAST    = 4904,
     NPC_GRIM_BANDIT       = 10758,
-    FACTION_ESCORTEE_LAKO = 232,   //guessed
 
     ID_AMBUSH_1           = 0,
     ID_AMBUSH_2           = 2,
@@ -137,13 +136,13 @@ class npc_lakota_windsong : public CreatureScript
 public:
     npc_lakota_windsong() : CreatureScript("npc_lakota_windsong") { }
 
-    struct npc_lakota_windsongAI : public npc_escortAI
+    struct npc_lakota_windsongAI : public EscortAI
     {
-        npc_lakota_windsongAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_lakota_windsongAI(Creature* creature) : EscortAI(creature) { }
 
         void Reset() override { }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             switch (waypointId)
             {
@@ -178,7 +177,7 @@ public:
             if (quest->GetQuestId() == QUEST_FREE_AT_LAST)
             {
                 Talk(SAY_LAKO_START, player);
-                me->SetFaction(FACTION_ESCORTEE_LAKO);
+                me->SetFaction(FACTION_ESCORTEE_H_NEUTRAL_ACTIVE);
 
                 Start(false, false, player->GetGUID(), quest);
             }
@@ -202,8 +201,7 @@ enum Packa
     SAY_COMPLETE     = 2,
 
     QUEST_HOMEWARD   = 4770,
-    NPC_WYVERN       = 4107,
-    FACTION_ESCORTEE = 232                               //guessed
+    NPC_WYVERN       = 4107
 };
 
 Position const WyvernLoc[3] =
@@ -218,13 +216,13 @@ class npc_paoka_swiftmountain : public CreatureScript
 public:
     npc_paoka_swiftmountain() : CreatureScript("npc_paoka_swiftmountain") { }
 
-    struct npc_paoka_swiftmountainAI : public npc_escortAI
+    struct npc_paoka_swiftmountainAI : public EscortAI
     {
-        npc_paoka_swiftmountainAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_paoka_swiftmountainAI(Creature* creature) : EscortAI(creature) { }
 
         void Reset() override { }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             switch (waypointId)
             {
@@ -253,7 +251,7 @@ public:
             if (quest->GetQuestId() == QUEST_HOMEWARD)
             {
                 Talk(SAY_START, player);
-                me->SetFaction(FACTION_ESCORTEE);
+                me->SetFaction(FACTION_ESCORTEE_H_NEUTRAL_ACTIVE);
 
                 Start(false, false, player->GetGUID(), quest);
             }
@@ -281,7 +279,7 @@ public:
     {
         go_panther_cageAI(GameObject* go) : GameObjectAI(go) { }
 
-        bool GossipHello(Player* player, bool /*reportUse*/) override
+        bool GossipHello(Player* player) override
         {
             me->UseDoorOrButton();
             if (player->GetQuestStatus(QUEST_HYPERCAPACITOR_GIZMO) == QUEST_STATUS_INCOMPLETE)

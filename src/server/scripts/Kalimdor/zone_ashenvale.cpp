@@ -28,10 +28,12 @@ npc_ruul_snowhoof
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedEscortAI.h"
+#include "GameObject.h"
 #include "GameObjectAI.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
+#include "ScriptedEscortAI.h"
+#include "SpellInfo.h"
 #include "SpellScript.h"
 
 /*####
@@ -44,7 +46,6 @@ enum RuulSnowhoof
     NPC_THISTLEFUR_TOTEMIC      = 3922,
     NPC_THISTLEFUR_PATHFINDER   = 3926,
     QUEST_FREEDOM_TO_RUUL       = 6482,
-    FACTION_QUEST               = 113,
     GO_CAGE                     = 178147
 };
 
@@ -63,9 +64,9 @@ class npc_ruul_snowhoof : public CreatureScript
 public:
     npc_ruul_snowhoof() : CreatureScript("npc_ruul_snowhoof") { }
 
-    struct npc_ruul_snowhoofAI : public npc_escortAI
+    struct npc_ruul_snowhoofAI : public EscortAI
     {
-        npc_ruul_snowhoofAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_ruul_snowhoofAI(Creature* creature) : EscortAI(creature) { }
 
         void Reset() override
         {
@@ -84,12 +85,12 @@ public:
         {
             if (quest->GetQuestId() == QUEST_FREEDOM_TO_RUUL)
             {
-                me->SetFaction(FACTION_QUEST);
-                npc_escortAI::Start(true, false, player->GetGUID());
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
+                EscortAI::Start(true, false, player->GetGUID());
             }
         }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -120,7 +121,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            npc_escortAI::UpdateAI(diff);
+            EscortAI::UpdateAI(diff);
         }
     };
 
@@ -180,9 +181,9 @@ class npc_muglash : public CreatureScript
 public:
     npc_muglash() : CreatureScript("npc_muglash") { }
 
-    struct npc_muglashAI : public npc_escortAI
+    struct npc_muglashAI : public EscortAI
     {
-        npc_muglashAI(Creature* creature) : npc_escortAI(creature)
+        npc_muglashAI(Creature* creature) : EscortAI(creature)
         {
             Initialize();
         }
@@ -227,12 +228,12 @@ public:
             if (quest->GetQuestId() == QUEST_VORSHA)
             {
                 Talk(SAY_MUG_START1);
-                me->SetFaction(FACTION_QUEST);
-                npc_escortAI::Start(true, false, player->GetGUID());
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
+                EscortAI::Start(true, false, player->GetGUID());
             }
         }
 
-            void WaypointReached(uint32 waypointId) override
+            void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
             {
                 if (Player* player = GetPlayerForEscort())
                 {
@@ -290,7 +291,7 @@ public:
 
             void UpdateAI(uint32 diff) override
             {
-                npc_escortAI::UpdateAI(diff);
+                EscortAI::UpdateAI(diff);
 
                 if (!me->GetVictim())
                 {
@@ -333,7 +334,7 @@ class go_naga_brazier : public GameObjectScript
         {
             go_naga_brazierAI(GameObject* go) : GameObjectAI(go) { }
 
-            bool GossipHello(Player* /*player*/, bool /*reportUse*/) override
+            bool GossipHello(Player* /*player*/) override
             {
                 if (Creature* creature = GetClosestCreatureWithEntry(me, NPC_MUGLASH, INTERACTION_DISTANCE * 2))
                 {

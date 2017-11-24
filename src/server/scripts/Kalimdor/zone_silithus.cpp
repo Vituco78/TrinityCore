@@ -36,11 +36,16 @@ TO DO: Dragons should use the HandleEmoteCommand(EMOTE_ONESHOT_LIFTOFF) after tr
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
+#include "CreatureAIImpl.h"
+#include "GameObject.h"
 #include "GameObjectAI.h"
 #include "Group.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
+#include "TemporarySummon.h"
 
 /*#####
 # Quest: A Pawn on the Eternal Board
@@ -49,9 +54,6 @@ EndContentData */
 enum EternalBoard
 {
     QUEST_A_PAWN_ON_THE_ETERNAL_BOARD = 8519,
-
-    FACTION_HOSTILE                   = 14,
-    FACTION_FRIENDLY                  = 35,
 
     EVENT_AREA_RADIUS                 = 65,     // 65yds
     EVENT_COOLDOWN                    = 500000, // in ms. appears after event completed or failed (should be = Adds despawn time)
@@ -506,11 +508,11 @@ public:
                         DoCast(player, SPELL_CALL_PRISMATIC_BARRIER, true);
                         break;
                     case 37:
-                        me->SummonGameObject(GO_GATE_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), G3D::Quat(), 0);
+                        me->SummonGameObject(GO_GATE_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), QuaternionData(), 0);
                         break;
                     case 38:
                         DoCast(player, SPELL_CALL_GLYPHS_OF_WARDING, true);
-                        me->SummonGameObject(GO_GLYPH_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), G3D::Quat(), 0);
+                        me->SummonGameObject(GO_GLYPH_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), QuaternionData(), 0);
                         break;
                     case 39:
                         Talk(ANACHRONOS_SAY_5, Fandral);
@@ -519,7 +521,7 @@ public:
                         Fandral->CastSpell(me, SPELL_CALL_ANCIENTS, true);
                         break;
                     case 41:
-                        Fandral->SummonGameObject(GO_ROOTS_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), G3D::Quat(), 0);
+                        Fandral->SummonGameObject(GO_ROOTS_OF_AHN_QIRAJ, Position(-8130.f, 1525.f, 17.5f, 0.f), QuaternionData(), 0);
                         Fandral->AI()->Talk(FANDRAL_SAY_3);
                         break;
                     case 42:
@@ -555,7 +557,7 @@ public:
                     case 51:
                     {
                         uint32 entries[4] = { NPC_KALDOREI_INFANTRY, NPC_ANUBISATH_CONQUEROR, NPC_QIRAJI_WASP, NPC_QIRAJI_TANK };
-                        Unit* mob = NULL;
+                        Unit* mob = nullptr;
                         for (uint8 i = 0; i < 4; ++i)
                         {
                             mob = player->FindNearestCreature(entries[i], 50);
@@ -619,7 +621,7 @@ public:
                         {
                             Talk(ARYGOS_YELL_1);
                             AnachronosQuestTrigger->AI()->EnterEvadeMode();
-                            eventEnd=true;
+                            eventEnd = true;
                         }
                         break;
                 }
@@ -742,7 +744,7 @@ public:
             }
             if (!hasTarget)
             {
-                Unit* target = NULL;
+                Unit* target = nullptr;
                 if (me->GetEntry() == NPC_ANUBISATH_CONQUEROR || me->GetEntry() == NPC_QIRAJI_TANK || me->GetEntry() == NPC_QIRAJI_WASP)
                     target = me->FindNearestCreature(NPC_KALDOREI_INFANTRY, 20, true);
                 if (me->GetEntry() == NPC_KALDOREI_INFANTRY)
@@ -870,7 +872,7 @@ public:
 
             if (Group* EventGroup = player->GetGroup())
             {
-                Player* groupMember = NULL;
+                Player* groupMember = nullptr;
 
                 uint8 GroupMemberCount = 0;
                 uint8 DeadMemberCount = 0;
@@ -982,7 +984,7 @@ public:
                         Merithra->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
                         Merithra->SetUInt32Value(UNIT_FIELD_BYTES_1, 0);
                         Merithra->SetUInt32Value(UNIT_FIELD_DISPLAYID, MERITHRA_NIGHT_ELF_FORM);
-                        Merithra->SetFaction(35);
+                        Merithra->SetFaction(FACTION_FRIENDLY);
                     }
 
                     if (Caelestrasz)
@@ -990,7 +992,7 @@ public:
                         Caelestrasz->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
                         Caelestrasz->SetUInt32Value(UNIT_FIELD_BYTES_1, 0);
                         Caelestrasz->SetUInt32Value(UNIT_FIELD_DISPLAYID, CAELESTRASZ_NIGHT_ELF_FORM);
-                        Caelestrasz->SetFaction(35);
+                        Caelestrasz->SetFaction(FACTION_FRIENDLY);
                     }
 
                     if (Arygos)
@@ -998,7 +1000,7 @@ public:
                         Arygos->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
                         Arygos->SetUInt32Value(UNIT_FIELD_BYTES_1, 0);
                         Arygos->SetUInt32Value(UNIT_FIELD_DISPLAYID, ARYGOS_GNOME_FORM);
-                        Arygos->SetFaction(35);
+                        Arygos->SetFaction(FACTION_FRIENDLY);
                     }
 
                     if (Anachronos)
@@ -1224,22 +1226,21 @@ class go_wind_stone : public GameObjectScript
                         case NPC_DUKE_WATER:
                         case NPC_DUKE_EARTH:
                         case NPC_DUKE_AIR:
-                            summons->AI()->Talk(SAY_DUKE_AGGRO);
+                            summons->AI()->Talk(SAY_DUKE_AGGRO, player);
                             break;
                         case NPC_ROYAL_FIRE:
                         case NPC_ROYAL_AIR:
                         case NPC_ROYAL_EARTH:
                         case NPC_ROYAL_WATER:
-                            summons->AI()->Talk(YELL_ROYAL_AGGRO);
+                            summons->AI()->Talk(YELL_ROYAL_AGGRO, player);
                             break;
                     }
                     summons->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                    summons->SendMeleeAttackStart(player);
-                    summons->CombatStart(player);
+                    summons->EngageWithTarget(player);
                 }
 
             public:
-                bool GossipHello(Player* player, bool /*reportUse*/) override
+                bool GossipHello(Player* player) override
                 {
                     uint8 rank = GetPlayerRank(player);
 

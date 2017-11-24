@@ -29,11 +29,12 @@ spell_gordunni_trap
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
+#include "GameObject.h"
+#include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
+#include "SpellInfo.h"
 #include "SpellScript.h"
-#include "Player.h"
 #include "WorldSession.h"
 
 /*######
@@ -54,9 +55,7 @@ enum OOX
     NPC_WOODPAW_ALPHA       = 5258,
     NPC_WOODPAW_MYSTIC      = 5254,
 
-    QUEST_RESCUE_OOX22FE    = 2767,
-    FACTION_ESCORTEE_A      = 774,
-    FACTION_ESCORTEE_H      = 775
+    QUEST_RESCUE_OOX22FE    = 2767
 };
 
 class npc_oox22fe : public CreatureScript
@@ -64,11 +63,11 @@ class npc_oox22fe : public CreatureScript
 public:
     npc_oox22fe() : CreatureScript("npc_oox22fe") { }
 
-    struct npc_oox22feAI : public npc_escortAI
+    struct npc_oox22feAI : public EscortAI
     {
-        npc_oox22feAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_oox22feAI(Creature* creature) : EscortAI(creature) { }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             switch (waypointId)
             {
@@ -130,10 +129,10 @@ public:
                 me->SetStandState(UNIT_STAND_STATE_STAND);
 
                 if (player->GetTeam() == ALLIANCE)
-                    me->SetFaction(FACTION_ESCORTEE_A);
+                    me->SetFaction(FACTION_ESCORTEE_A_PASSIVE);
 
                 if (player->GetTeam() == HORDE)
-                    me->SetFaction(FACTION_ESCORTEE_H);
+                    me->SetFaction(FACTION_ESCORTEE_H_PASSIVE);
 
                 Start(true, false, player->GetGUID());
             }
@@ -168,7 +167,7 @@ class spell_gordunni_trap : public SpellScriptLoader
             void HandleDummy()
             {
                 Unit* caster = GetCaster();
-                if (GameObject* chest = caster->SummonGameObject(urand(0, 1) ? GO_GORDUNNI_DIRT_MOUND_1 : GO_GORDUNNI_DIRT_MOUND_2, *caster, G3D::Quat(), 0))
+                if (GameObject* chest = caster->SummonGameObject(urand(0, 1) ? GO_GORDUNNI_DIRT_MOUND_1 : GO_GORDUNNI_DIRT_MOUND_2, *caster, QuaternionData(), 0))
                 {
                     chest->SetSpellId(GetSpellInfo()->Id);
                     caster->RemoveGameObject(chest, false);

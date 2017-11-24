@@ -28,14 +28,16 @@ npc_alexstrasza_wr_gate
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "SpellScript.h"
-#include "SpellAuraEffects.h"
-#include "ScriptedEscortAI.h"
-#include "Vehicle.h"
 #include "CombatAI.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
+#include "SpellInfo.h"
+#include "SpellScript.h"
+#include "Vehicle.h"
 
 /*#####
 # npc_commander_eligor_dawnbringer
@@ -379,9 +381,7 @@ enum StrengthenAncientsMisc
     SPELL_CREATE_ITEM_BARK      = 47550,
     SPELL_CONFUSED              = 47044,
 
-    NPC_LOTHALOR                = 26321,
-
-    FACTION_WALKER_ENEMY        = 14,
+    NPC_LOTHALOR                = 26321
 };
 
 class spell_q12096_q12092_dummy : public SpellScriptLoader // Strengthen the Ancients: On Interact Dummy to Woodlands Walker
@@ -411,10 +411,10 @@ public:
                 tree->AI()->Talk(SAY_WALKER_FRIENDLY, player);
                 tree->DespawnOrUnsummon(1000);
             }
-            else if (roll == 0) // enemy version
+            else // enemy version
             {
                 tree->AI()->Talk(SAY_WALKER_ENEMY, player);
-                tree->SetFaction(FACTION_WALKER_ENEMY);
+                tree->SetFaction(FACTION_MONSTER);
                 tree->Attack(player, true);
             }
         }
@@ -550,7 +550,7 @@ class npc_wyrmrest_defender : public CreatureScript
                 {
                     case SPELL_WYRMREST_DEFENDER_MOUNT:
                         Talk(WHISPER_MOUNTED, me->GetCharmerOrOwner());
-                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                        me->SetImmuneToAll(false);
                         me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE);
                         break;
                     // Both below are for checking low hp warning
@@ -642,7 +642,7 @@ class npc_torturer_lecraft : public CreatureScript
                     Talk (SAY_AGGRO, player);
             }
 
-            void SpellHit(Unit* caster, const SpellInfo* spell) override
+            void SpellHit(Unit* caster, SpellInfo const* spell) override
             {
                 if (spell->Id != SPELL_HIGH_EXECUTORS_BRANDING_IRON)
                     return;
@@ -717,7 +717,7 @@ class at_nearby_messenger_torvus : public AreaTriggerScript
 public:
     at_nearby_messenger_torvus() : AreaTriggerScript("at_nearby_messenger_torvus") { }
 
-    bool OnTrigger(Player* player, const AreaTriggerEntry* /*at*/) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
     {
         if (player->IsAlive())
             if (Quest const* quest = sObjectMgr->GetQuestTemplate(QUEST_MESSAGE_FROM_THE_WEST))

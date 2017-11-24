@@ -29,22 +29,19 @@ npc_weegli_blastfuse
 EndContentData */
 
 #include "ScriptMgr.h"
+#include "GameObject.h"
+#include "GameObjectAI.h"
+#include "InstanceScript.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "GameObjectAI.h"
 #include "zulfarrak.h"
-#include "Player.h"
 
 /*######
 ## npc_sergeant_bly
 ######*/
-
-enum blyAndCrewFactions
-{
-    FACTION_HOSTILE           = 14,
-    FACTION_FRIENDLY          = 35,  //while in cages (so the trolls won't attack them while they're caged)
-    FACTION_FREED             = 250  //after release (so they'll be hostile towards trolls)
-};
 
 enum blySays
 {
@@ -106,7 +103,7 @@ public:
                     {
                         case 1:
                             //weegli doesn't fight - he goes & blows up the door
-                            if (Creature* pWeegli = instance->instance->GetCreature(instance->GetGuidData(ENTRY_WEEGLI)))
+                            if (Creature* pWeegli = ObjectAccessor::GetCreature(*me, instance->GetGuidData(ENTRY_WEEGLI)))
                                 pWeegli->AI()->DoAction(0);
                             Talk(SAY_1);
                             Text_Timer = 5000;
@@ -116,7 +113,7 @@ public:
                             Text_Timer = 5000;
                             break;
                         case 3:
-                            me->SetFaction(FACTION_HOSTILE);
+                            me->SetFaction(FACTION_MONSTER);
                             if (Player* target = ObjectAccessor::GetPlayer(*me, PlayerGUID))
                                 AttackStart(target);
 
@@ -161,7 +158,7 @@ public:
         {
            if (Creature* crew = ObjectAccessor::GetCreature(*me, instance->GetGuidData(entry)))
                if (crew->IsAlive())
-                   crew->SetFaction(FACTION_HOSTILE);
+                   crew->SetFaction(FACTION_MONSTER);
         }
 
         bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
@@ -195,7 +192,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetInstanceAI<npc_sergeant_blyAI>(creature);
+        return GetZulFarrakAI<npc_sergeant_blyAI>(creature);
     }
 };
 
@@ -214,7 +211,7 @@ public:
 
         InstanceScript* instance;
 
-        bool GossipHello(Player* /*player*/, bool /*reportUse*/) override
+        bool GossipHello(Player* /*player*/) override
         {
             instance->SetData(EVENT_PYRAMID, PYRAMID_CAGES_OPEN);
             //set bly & co to aggressive & start moving to top of stairs
@@ -229,20 +226,20 @@ public:
     private:
         void initBlyCrewMember(uint32 entry, float x, float y, float z)
         {
-            if (Creature* crew = instance->instance->GetCreature(instance->GetGuidData(entry)))
+            if (Creature* crew = ObjectAccessor::GetCreature(*me, instance->GetGuidData(entry)))
             {
                 crew->SetReactState(REACT_AGGRESSIVE);
                 crew->SetWalk(true);
                 crew->SetHomePosition(x, y, z, 0);
                 crew->GetMotionMaster()->MovePoint(1, x, y, z);
-                crew->SetFaction(FACTION_FREED);
+                crew->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_ACTIVE);
             }
         }
     };
 
     GameObjectAI* GetAI(GameObject* go) const override
     {
-        return GetInstanceAI<go_troll_cageAI>(go);
+        return GetZulFarrakAI<go_troll_cageAI>(go);
     }
 };
 
@@ -276,7 +273,7 @@ public:
         npc_weegli_blastfuseAI(Creature* creature) : ScriptedAI(creature)
         {
             instance = creature->GetInstanceScript();
-            destroyingDoor=false;
+            destroyingDoor = false;
             Bomb_Timer = 10000;
             LandMine_Timer = 30000;
         }
@@ -351,7 +348,7 @@ public:
                 me->GetMotionMaster()->MovePoint(0, 1858.57f, 1146.35f, 14.745f);
                 me->SetHomePosition(1858.57f, 1146.35f, 14.745f, 3.85f); // in case he gets interrupted
                 Talk(SAY_WEEGLI_OK_I_GO);
-                destroyingDoor=true;
+                destroyingDoor = true;
             }
         }
 
@@ -388,7 +385,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetInstanceAI<npc_weegli_blastfuseAI>(creature);
+        return GetZulFarrakAI<npc_weegli_blastfuseAI>(creature);
     }
 };
 
@@ -413,7 +410,7 @@ public:
     {
         go_shallow_graveAI(GameObject* go) : GameObjectAI(go) { }
 
-        bool GossipHello(Player* /*player*/, bool /*reportUse*/) override
+        bool GossipHello(Player* /*player*/) override
         {
             // randomly summon a zombie or dead hero the first time a grave is used
             if (me->GetUseCount() == 0)
@@ -432,7 +429,7 @@ public:
 
     GameObjectAI* GetAI(GameObject* go) const override
     {
-        return new go_shallow_graveAI(go);
+        return GetZulFarrakAI<go_shallow_graveAI>(go);
     }
 };
 
@@ -451,7 +448,7 @@ class at_zumrah : public AreaTriggerScript
 public:
     at_zumrah() : AreaTriggerScript("at_zumrah") { }
 
-    bool OnTrigger(Player* player, const AreaTriggerEntry* /*at*/) override
+    bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
     {
         Creature* pZumrah = player->FindNearestCreature(ZUMRAH_ID, 30.0f);
 

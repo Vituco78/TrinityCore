@@ -28,10 +28,11 @@ npc_ranger_lilatha
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "ScriptedEscortAI.h"
+#include "GameObject.h"
 #include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
+#include "TemporarySummon.h"
 #include "WorldSession.h"
 
 /*######
@@ -51,8 +52,7 @@ enum RangerLilatha
     GO_CAGE                             = 181152,
     NPC_CAPTAIN_HELIOS                  = 16220,
     NPC_MUMMIFIED_HEADHUNTER            = 16342,
-    NPC_SHADOWPINE_ORACLE               = 16343,
-    FACTION_QUEST_ESCAPE                = 113
+    NPC_SHADOWPINE_ORACLE               = 16343
 };
 
 class npc_ranger_lilatha : public CreatureScript
@@ -60,11 +60,11 @@ class npc_ranger_lilatha : public CreatureScript
 public:
     npc_ranger_lilatha() : CreatureScript("npc_ranger_lilatha") { }
 
-    struct npc_ranger_lilathaAI : public npc_escortAI
+    struct npc_ranger_lilathaAI : public EscortAI
     {
-        npc_ranger_lilathaAI(Creature* creature) : npc_escortAI(creature) { }
+        npc_ranger_lilathaAI(Creature* creature) : EscortAI(creature) { }
 
-        void WaypointReached(uint32 waypointId) override
+        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -131,7 +131,7 @@ public:
         {
             if (quest->GetQuestId() == QUEST_ESCAPE_FROM_THE_CATACOMBS)
             {
-                me->SetFaction(FACTION_QUEST_ESCAPE);
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
                 Start(true, false, player->GetGUID());
             }
         }

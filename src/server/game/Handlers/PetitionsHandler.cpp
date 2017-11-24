@@ -16,20 +16,25 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Common.h"
-#include "Language.h"
-#include "WorldPacket.h"
 #include "WorldSession.h"
-#include "World.h"
-#include "ObjectMgr.h"
-#include "ArenaTeamMgr.h"
-#include "GuildMgr.h"
-#include "Log.h"
-#include "Opcodes.h"
-#include "Guild.h"
 #include "ArenaTeam.h"
+#include "ArenaTeamMgr.h"
 #include "CharacterCache.h"
+#include "Common.h"
+#include "Creature.h"
+#include "DatabaseEnv.h"
+#include "Guild.h"
+#include "GuildMgr.h"
+#include "Item.h"
+#include "Language.h"
+#include "Log.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "Opcodes.h"
+#include "Player.h"
 #include "PetitionMgr.h"
+#include "WorldPacket.h"
+#include "World.h"
 
 #define CHARTER_DISPLAY_ID 16161
 
@@ -170,7 +175,7 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(charterid);
     if (!pProto)
     {
-        _player->SendBuyError(BUY_ERR_CANT_FIND_ITEM, NULL, charterid, 0);
+        _player->SendBuyError(BUY_ERR_CANT_FIND_ITEM, nullptr, charterid, 0);
         return;
     }
 
@@ -184,7 +189,7 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     InventoryResult msg = _player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, charterid, pProto->BuyCount);
     if (msg != EQUIP_ERR_OK)
     {
-        _player->SendEquipError(msg, NULL, NULL, charterid);
+        _player->SendEquipError(msg, nullptr, nullptr, charterid);
         return;
     }
 
@@ -252,7 +257,7 @@ void WorldSession::SendPetitionSigns(Petition const* petition, Player* sendTo)
         data << uint32(0);                              // there 0 ...
     }
 
-    sendTo->GetSession()->SendPacket(&data);
+    sendTo->SendDirectMessage(&data);
 }
 
 void WorldSession::HandlePetitionQueryOpcode(WorldPacket& recvData)
@@ -415,7 +420,7 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
     {
         if (_player->getLevel() < sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
         {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, "", _player->GetName().c_str(), ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, "", _player->GetName(), ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
             return;
         }
 
@@ -425,13 +430,13 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
 
         if (_player->GetArenaTeamId(slot))
         {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName().c_str(), ERR_ALREADY_IN_ARENA_TEAM_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName(), ERR_ALREADY_IN_ARENA_TEAM_S);
             return;
         }
 
         if (_player->GetArenaTeamIdInvited())
         {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName().c_str(), ERR_ALREADY_INVITED_TO_ARENA_TEAM_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName(), ERR_ALREADY_INVITED_TO_ARENA_TEAM_S);
             return;
         }
     }
@@ -467,7 +472,7 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
 
         // update for owner if online
         if (Player* owner = ObjectAccessor::FindConnectedPlayer(ownerGuid))
-            owner->GetSession()->SendPacket(&data);
+            owner->SendDirectMessage(&data);
         return;
     }
 
@@ -484,7 +489,7 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
 
     // update for owner if online
     if (Player* owner = ObjectAccessor::FindConnectedPlayer(ownerGuid))
-        owner->GetSession()->SendPacket(&data);
+        owner->SendDirectMessage(&data);
 }
 
 void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recvData)
@@ -504,7 +509,7 @@ void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recvData)
     {
         WorldPacket data(MSG_PETITION_DECLINE, 8);
         data << uint64(_player->GetGUID());
-        owner->GetSession()->SendPacket(&data);
+        owner->SendDirectMessage(&data);
     }
 }
 
@@ -544,7 +549,7 @@ void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recvData)
         if (player->getLevel() < sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
         {
             // player is too low level to join an arena team
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName().c_str(), "", ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "", ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
             return;
         }
 
@@ -555,13 +560,13 @@ void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recvData)
         if (player->GetArenaTeamId(slot))
         {
             // player is already in an arena team
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName().c_str(), "", ERR_ALREADY_IN_ARENA_TEAM_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, player->GetName(), "", ERR_ALREADY_IN_ARENA_TEAM_S);
             return;
         }
 
         if (player->GetArenaTeamIdInvited())
         {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName().c_str(), ERR_ALREADY_INVITED_TO_ARENA_TEAM_S);
+            SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName(), ERR_ALREADY_INVITED_TO_ARENA_TEAM_S);
             return;
         }
     }
@@ -622,7 +627,7 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
         {
             data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 4);
             data << (uint32)PETITION_TURN_ALREADY_IN_GUILD;
-            _player->GetSession()->SendPacket(&data);
+            _player->SendDirectMessage(&data);
             return;
         }
 
